@@ -8,13 +8,15 @@ You **must sign in to Sorsa** in the same Chrome profile as the extension for sc
 
 ## Install in Chrome
 
-1. Download `sorsa-score-extension-v*.zip` from this repository's **Releases** page. Use the extension ZIP, not the source ZIP.
-2. Extract the ZIP to a folder you plan to keep. `manifest.json` should be directly inside that folder.
+1. Get the extension folder in either way:
+   - **From the visible source, without a ZIP:** run `git clone https://github.com/marik8002/sorsa-score-for-x.git` and use the new `sorsa-score-for-x` folder.
+   - **From a release archive:** download `sorsa-score-extension-v*.zip` from [Releases](https://github.com/marik8002/sorsa-score-for-x/releases) and extract it to a folder you plan to keep. Use the extension ZIP, not the source ZIP.
+2. Confirm that `manifest.json` is directly inside the chosen folder.
 3. Open `chrome://extensions` in Chrome and turn on **Developer mode**.
-4. Click **Load unpacked** and select the extracted folder.
+4. Click **Load unpacked** and select that folder.
 5. Sign in at [app.sorsa.io](https://app.sorsa.io/) in the same Chrome profile, then open or reload an X page.
 
-If you already have another version installed, disable it to avoid duplicate scores. Keep the extracted folder in place: Chrome loads the extension from it.
+If you already have another version installed, disable it to avoid duplicate scores. Keep the selected folder in place: Chrome loads the extension from it.
 
 ## Use the extension
 
