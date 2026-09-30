@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sorsa Score</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header class="brand">
+        <img class="brand-logo" src="images/sorsa-logo.svg" alt="Sorsa logo">
+        <div class="brand-copy"><span>ex. TweetScout</span></div>
+      </header>
+      <section class="status-card" aria-live="polite">
+        <span class="eyebrow">Sorsa Score for X</span>
+        <div class="status-head"><span id="status-dot" class="dot"></span><span id="status-label">Checking status</span></div>
+        <p id="status-message">Loading extension status…</p>
+        <a id="sorsa-login" href="https://app.sorsa.io/authorization" target="_blank" rel="noopener noreferrer" hidden>Sign in to Sorsa</a>
+      </section>
+      <dl class="facts">
+        <div class="source-fact"><dt>Source</dt><dd id="session-state">Sorsa profiles</dd></div>
+        <div><dt>Cached</dt><dd id="cache-count">0</dd></div>
+        <div><dt>Cache TTL</dt><dd>24 hours</dd></div>
+      </dl>
+      <section class="bots-option">
+        <label><input id="show-bots" type="checkbox" checked disabled><span>Show bots</span></label>
+        <span id="premium-state">Checking Plus status…</span>
+      </section>
+      <div class="actions">
+        <button id="refresh-status" class="primary">Refresh status</button>
+        <button id="clear-cache" class="secondary">Clear score cache</button>
+      </div>
+      <footer><span class="privacy-mark" aria-hidden="true">✓</span><span>Scores use your Sorsa browser session.<br>The extension does not read or store your password or cookies.</span></footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

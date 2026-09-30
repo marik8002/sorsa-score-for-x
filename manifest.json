@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Sorsa Score for X",
+  "version": "1.7.12",
+  "description": "See Sorsa Scores on X and bot follower estimates on profiles with Sorsa Plus.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://app.sorsa.io/*"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Sorsa Score for X",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "core.js",
+        "content-script.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://app.sorsa.io/*"],
+      "js": ["site-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

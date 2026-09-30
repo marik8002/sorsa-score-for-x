@@ -1,0 +1,36 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+  <title id="title">Sorsa Score for X</title>
+  <desc id="desc">Chrome extension showing Sorsa scores beside account handles on X, with bot estimates for Plus or Premium users.</desc>
+  <defs>
+    <linearGradient id="logoGradient" x1="-4.211" x2="64.287" y1="11.178" y2="31.812" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38CCE8"/><stop offset=".52" stop-color="#044CFE"/><stop offset="1" stop-color="#8C7AFE"/>
+    </linearGradient>
+    <g id="sorsaMark">
+      <path fill="#fff" d="M16.386 11.022a.155.155 0 0 1 .309 0l.182 1.622c.233 2.095 1.789 3.748 3.762 3.998l1.527.194c.183.022.183.303 0 .325l-1.527.194c-1.973.25-3.529 1.9-3.762 3.998l-.182 1.622a.155.155 0 0 1-.309 0l-.182-1.622c-.233-2.095-1.789-3.748-3.762-3.998l-1.527-.194c-.183-.022-.183-.303 0-.325l1.527-.194c1.973-.25 3.529-1.9 3.762-3.998z"/>
+      <path fill="url(#logoGradient)" d="M44.114 27.607c-6.224.424-11.386-4.492-11.386-10.595S37.494 6.386 43.353 6.386s11.021 5.16 10.595 11.384c-.365 5.221-4.584 9.472-9.837 9.834zm-27.051 0c-6.406.396-11.69-4.888-11.294-11.291.334-5.28 4.615-9.593 9.899-9.927a10.66 10.66 0 0 1 11.324 11.322c-.334 5.28-4.646 9.562-9.926 9.896zM44.235.682C38.892.41 34.064 2.686 30.905 6.42c-.547.637-1.55.637-2.063 0-3.065-3.613-7.65-5.859-12.75-5.766C7.225.805.03 8.12 0 16.984c0 2.824.699 5.494 1.974 7.801a2.25 2.25 0 0 1-.365 2.673l-.351.35a3.226 3.226 0 0 0 0 4.585 3.226 3.226 0 0 0 4.584 0l.444-.44c.699-.7 1.729-.851 2.61-.396a16.2 16.2 0 0 0 7.44 1.79c4.98 0 9.44-2.245 12.447-5.766.548-.637 1.55-.637 2.064 0 3.006 3.52 7.467 5.767 12.447 5.767 9.261 0 16.698-7.681 16.333-16.998C59.383 7.971 52.614 1.11 44.235.684z"/>
+      <path fill="#fff" d="M43.58 22.868a5.991 5.991 0 0 0 5.539-3.703 5.96 5.96 0 0 0 0-4.587 6 6 0 0 0-3.245-3.245 6 6 0 0 0-2.294-.457v11.992"/>
+    </g>
+  </defs>
+  <rect width="1200" height="340" rx="24" fill="#0A0826"/>
+  <path d="M0 300C190 268 393 360 609 312s396-16 591-74" fill="none" stroke="#5142D1" stroke-opacity=".28" stroke-width="2"/>
+  <g transform="translate(62 55) scale(1.55)"><use href="#sorsaMark"/></g>
+  <text x="62" y="174" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="57" font-weight="700" letter-spacing="-1.7">Sorsa Score for X</text>
+  <text x="64" y="221" fill="#C5C3E3" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="23">Sorsa scores beside account handles on X</text>
+  <text x="64" y="283" fill="#817DAE" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="17" letter-spacing="1.7">CHROME EXTENSION / PLUS AND PREMIUM BOT ESTIMATES</text>
+  <g transform="translate(756 65)">
+    <rect width="384" height="218" rx="22" fill="#10102E" stroke="#44416C"/>
+    <text x="27" y="39" fill="#918DB7" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="15" letter-spacing="2">PROFILE EXAMPLE</text>
+    <circle cx="54" cy="103" r="27" fill="#34365F"/>
+    <circle cx="54" cy="96" r="10" fill="#7D81AB"/>
+    <path d="M36 118c4-14 32-14 36 0" fill="#7D81AB"/>
+    <text x="96" y="94" fill="#F9F9FC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="25" font-weight="700">Creator</text>
+    <text x="96" y="123" fill="#9DA0B7" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="20">@creator</text>
+    <g transform="translate(198 105) scale(.37)"><use href="#sorsaMark"/></g>
+    <text x="225" y="124" fill="#E7B532" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="22" font-weight="600">965</text>
+    <path d="M28 154h328" stroke="#353450"/>
+    <text x="29" y="189" fill="#F5F5FA" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="20" font-weight="700">4,568</text>
+    <text x="91" y="189" fill="#A9ADC2" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="20">Followers</text>
+    <text x="239" y="189" fill="#46C381" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="20">Bots</text>
+    <text x="287" y="189" fill="#46C381" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif" font-size="20" font-weight="700">9%</text>
+  </g>
+</svg>

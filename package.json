@@ -1,0 +1,13 @@
+{
+  "name": "sorsa-score-extension",
+  "version": "1.7.12",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "verify": "sh scripts/verify-package.sh",
+    "build": "rm -f dist/sorsa-score-extension.zip && mkdir -p dist && zip -X -q dist/sorsa-score-extension.zip manifest.json core.js content-script.js service-worker.js site-bridge.js popup.html popup.js popup.css images/sorsa-logo.svg icons/icon-16.png icons/icon-32.png icons/icon-48.png icons/icon-128.png README.txt && sh scripts/verify-package.sh"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
