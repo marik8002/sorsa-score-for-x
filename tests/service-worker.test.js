@@ -13,10 +13,12 @@ async function createWorker({
   beforeLocalSet,
   beforeLocalRemove,
   premiumHtml,
+  premiumResponseUrl,
   siteResponse = { ok: true, status: 200 },
   siteTabs = [{ id: 1 }],
 } = {}) {
   let listener;
+  let homeChecks = 0;
   const siteMessages = [];
   const createdTabs = [];
   const removedTabs = [];
@@ -45,7 +47,9 @@ async function createWorker({
     setTimeout,
     fetch: (url, options) => {
       if (url === 'https://app.sorsa.io/' && options?.method !== 'HEAD') {
-        return Promise.resolve({ ok: Boolean(premiumHtml), url, async text() { return premiumHtml || ''; } });
+        homeChecks += 1;
+        const html = typeof premiumHtml === 'function' ? premiumHtml() : premiumHtml;
+        return Promise.resolve({ ok: Boolean(html), url: premiumResponseUrl || url, async text() { return html || ''; } });
       }
       return (fetchImpl || (async () => ({ ok: false, async text() { return ''; } })))(url, options);
     },
@@ -74,7 +78,7 @@ async function createWorker({
     const keepAlive = listener(message, {}, resolve);
     if (keepAlive !== true) queueMicrotask(() => resolve(undefined));
   });
-  return { local, session, send, siteMessages, createdTabs, removedTabs };
+  return { local, session, send, siteMessages, createdTabs, removedTabs, get homeChecks() { return homeChecks; } };
 }
 
 test('Sorsa page bridge starts the bot task with the signed-in browser session', async () => {
@@ -148,6 +152,67 @@ test('worker gates bot refresh on Sorsa Plus and keeps the last finished value',
     fetchImpl: async (url) => ({ ok: true, url, async text() { return html.replace('is_premium\\\":true', 'is_premium\\\":false'); } }),
   });
   assert.equal((await basic.send({ type: 'SORSA_REFRESH_BOTS', handle: 'pmarca' })).premium, false);
+});
+
+test('temporary missing plan data keeps confirmed Plus and cached bots until Sorsa explicitly downgrades it', async () => {
+  const query = (key, data) => `<script>self.__next_f.push([1,${JSON.stringify('1:' + JSON.stringify({ queryKey: [key, 'pmarca'], state: { data } }))}])</script>`;
+  const account = query('@profiles/searchAccounts', {
+    id: 'c71012f7-f82e-4ec0-adea-65a283d5f606', screen_name: 'pmarca',
+    bot_followers: { status: 'finish', value: 17.8, last_update: 1790674814 },
+  });
+  let homeHtml = query('@account/getMe', { is_premium: true });
+  let profileHtml = homeHtml + account;
+  let unavailable = false;
+  let redirected = false;
+  const worker = await createWorker({
+    premiumHtml: () => homeHtml,
+    fetchImpl: async (url) => {
+      if (unavailable) throw new Error('Temporary network failure');
+      if (redirected) return { ok: true, url: 'https://app.sorsa.io/authorization', async text() { return ''; } };
+      return { ok: true, url, async text() { return profileHtml; } };
+    },
+  });
+  assert.equal((await worker.send({ type: 'GET_STATUS' })).premium, true);
+  assert.equal((await worker.send({ type: 'SORSA_GET_BOTS', handle: 'pmarca' })).latest.value, 17.8);
+
+  homeHtml = '<html>No hydrated account query</html>';
+  profileHtml = homeHtml;
+  assert.equal((await worker.send({ type: 'GET_STATUS' })).premium, true);
+  const missing = await worker.send({ type: 'SORSA_GET_BOTS', handle: 'pmarca' });
+  assert.equal(missing.premium, true);
+  assert.equal(missing.latest.value, 17.8);
+  const restarted = await createWorker({
+    local: worker.local,
+    premiumHtml: () => homeHtml,
+    fetchImpl: async (url) => ({ ok: true, url, async text() { return profileHtml; } }),
+  });
+  assert.equal((await restarted.send({ type: 'GET_STATUS' })).premium, true);
+  assert.equal((await restarted.send({ type: 'SORSA_GET_BOTS', handle: 'pmarca' })).latest.value, 17.8);
+  unavailable = true;
+  const failed = await worker.send({ type: 'SORSA_GET_BOTS', handle: 'pmarca' });
+  assert.equal(failed.premium, true);
+  assert.equal(failed.latest.value, 17.8);
+
+  unavailable = false;
+  redirected = true;
+  assert.equal((await worker.send({ type: 'SORSA_GET_BOTS', handle: 'pmarca' })).authRequired, true);
+  assert.equal(worker.local.has('sorsa-premium'), false);
+  redirected = false;
+  profileHtml = query('@account/getMe', { is_premium: false }) + account;
+  assert.equal((await worker.send({ type: 'SORSA_GET_BOTS', handle: 'pmarca' })).premium, false);
+  assert.equal((await worker.send({ type: 'GET_STATUS' })).premium, false);
+});
+
+test('quiet session check verifies Sorsa once per cooldown and reports expired sign-in', async () => {
+  const worker = await createWorker({
+    premiumHtml: '<html>Signed in, plan field not hydrated yet</html>',
+    premiumResponseUrl: 'https://app.sorsa.io/authorization?redirectTo=%2F',
+  });
+  const first = await worker.send({ type: 'CHECK_SESSION' });
+  assert.equal(first.phase, 'auth');
+  assert.equal(worker.homeChecks, 1);
+  assert.equal((await worker.send({ type: 'CHECK_SESSION' })).checked, false);
+  assert.equal(worker.homeChecks, 1, 'other X tabs must share the same ten-minute check');
 });
 
 test('worker clear is a generation barrier against an in-flight write and response', async () => {

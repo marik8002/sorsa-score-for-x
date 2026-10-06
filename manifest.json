@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sorsa Score for X",
-  "version": "1.7.12",
+  "version": "1.7.14",
   "description": "See Sorsa Scores on X and bot follower estimates on profiles with Sorsa Plus.",
   "permissions": [
     "storage"

@@ -8,9 +8,11 @@
   const botResults = new Map();
   const pendingBots = new Map();
   const pendingBotRefreshes = new Set();
+  let botRetryTimer = null;
   const CACHE_PREFIX = 'sorsa-score:';
   const GENERATION_KEY = 'sorsa-cache-generation';
   const CACHE_TTL_MS = core.CACHE_TTL_MS || 24 * 60 * 60 * 1000;
+  const SESSION_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   const IDENTITY_REGION_SELECTOR = '[data-testid="User-Name"], [data-testid="UserName"], [data-testid="UserCell"], [data-testid="HoverCard"]';
   const FOLLOWERS_SELECTOR = 'a[href$="/followers"], a[href$="/verified_followers"]';
   const RETRY_AFTER_MS = 60 * 1000;
@@ -21,6 +23,14 @@
   let fullScanCount = 0;
   let cacheGeneration = 0;
   let observedLocation = globalThis.location ? globalThis.location.href : '';
+
+  const checkSorsaSession = () => {
+    try {
+      chrome.runtime.sendMessage({ type: 'CHECK_SESSION' }, () => void chrome.runtime.lastError);
+    } catch { /* The extension may be reloaded while this tab remains open. */ }
+  };
+  checkSorsaSession();
+  setInterval(checkSorsaSession, SESSION_CHECK_INTERVAL_MS);
 
   const requestBots = (handle, refresh = false, force = false) => {
     if (!refresh && pendingBots.has(handle)) return pendingBots.get(handle);
@@ -81,6 +91,16 @@
     }, attempts < 36 ? 10000 : 60000);
   };
 
+  const retryBotCheck = (handle) => {
+    if (botRetryTimer) return;
+    botRetryTimer = setTimeout(() => {
+      botRetryTimer = null;
+      if (canonicalProfileHandle() !== handle) return;
+      botResults.delete(handle);
+      queueFullScan();
+    }, 60000);
+  };
+
   const followerLinkFor = (handle) => {
     const root = document.querySelector('[data-testid="primaryColumn"]') || document;
     return [...root.querySelectorAll(FOLLOWERS_SELECTOR)].find((link) => {
@@ -95,6 +115,7 @@
     if (!followerLink) return;
     const result = await requestBots(handle);
     if (!badge.isConnected || !followerLink.isConnected || canonicalProfileHandle() !== handle) return;
+    if (result.premium === null || result.authRequired || result.error) retryBotCheck(handle);
     let widget = document.querySelector('.sorsa-bot-widget');
     if (result.premium !== true || result.enabled === false) {
       widget?.remove();
@@ -556,11 +577,13 @@
       const removedScoreRecord = Object.entries(changes).some(([key, change]) => (
         key.startsWith(CACHE_PREFIX) && change && change.newValue === undefined
       ));
-      const botsChanged = Object.prototype.hasOwnProperty.call(changes, 'sorsa-show-bots');
+      const botsChanged = Object.prototype.hasOwnProperty.call(changes, 'sorsa-show-bots') ||
+        Object.prototype.hasOwnProperty.call(changes, 'sorsa-premium');
       if (botsChanged) {
         botResults.clear();
         pendingBots.clear();
-        if (changes['sorsa-show-bots'].newValue === false) {
+        if (changes['sorsa-show-bots']?.newValue === false ||
+            (Object.prototype.hasOwnProperty.call(changes, 'sorsa-premium') && changes['sorsa-premium'].newValue !== true)) {
           for (const widget of document.querySelectorAll('.sorsa-bot-widget')) widget.remove();
         }
         queueFullScan();

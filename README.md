@@ -32,7 +32,9 @@ Without Plus or Premium, the **Show bots** option is disabled. Scores remain ava
 
 ## Privacy and cache
 
-The extension reads account handles shown in X identity areas and requests their public Sorsa profiles using your existing browser session. It does not read or transmit post content, or read or store your password, session cookies, or API keys. Confirmed scores and the latest bot estimates are cached locally. Scores expire after 24 hours; use **Clear score cache** in the popup to fetch them again.
+While an X tab is open, the extension quietly checks the Sorsa session every ten minutes. If Sorsa expires the session, sign in again to continue.
+
+The extension reads account handles shown in X identity areas and requests their public Sorsa profiles using your existing browser session. It does not read or transmit post content, or read or store your password, session cookies, or API keys. Confirmed scores, the latest bot estimates, and the last confirmed Plus status are cached locally. Scores expire after 24 hours; use **Clear score cache** in the popup to fetch them again.
 
 ## Development
 

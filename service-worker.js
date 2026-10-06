@@ -3,9 +3,12 @@ importScripts('core.js');
 (function () {
   const core = globalThis.SorsaScoreCore;
   const STATUS_KEY = 'sorsaStatus';
+  const AUTH_CHECK_KEY = 'sorsa-auth-checked-at';
+  const AUTH_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   const CACHE_PREFIX = 'sorsa-score:';
   const GENERATION_KEY = 'sorsa-cache-generation';
   const SHOW_BOTS_KEY = 'sorsa-show-bots';
+  const PREMIUM_KEY = 'sorsa-premium';
   const BOT_PREFIX = 'sorsa-bot:';
   const ERROR_TTL_MS = 60 * 1000;
   const activeRequests = new Set();
@@ -34,6 +37,15 @@ importScripts('core.js');
     const status = { phase, message };
     if (failedAt) status.failedAt = failedAt;
     await chrome.storage.session.set({ [STATUS_KEY]: status });
+  };
+
+  const rememberPremium = async (premium) => {
+    const stored = await chrome.storage.local.get(PREMIUM_KEY);
+    if (typeof premium === 'boolean') {
+      if (stored[PREMIUM_KEY] !== premium) await chrome.storage.local.set({ [PREMIUM_KEY]: premium });
+      return premium;
+    }
+    return typeof stored[PREMIUM_KEY] === 'boolean' ? stored[PREMIUM_KEY] : null;
   };
 
   const getStatus = async () => {
@@ -65,12 +77,29 @@ importScripts('core.js');
     if (status.phase !== 'auth') {
       try {
         const response = await fetch('https://app.sorsa.io/', { credentials: 'include', cache: 'no-store' });
-        if (response.ok && new URL(response.url).pathname !== '/authorization') {
+        if (response.ok && new URL(response.url).pathname === '/authorization') {
+          status = { phase: 'auth', message: 'Sign in to Sorsa to see scores on X.' };
+          await chrome.storage.session.set({ [STATUS_KEY]: status });
+          await chrome.storage.local.remove(PREMIUM_KEY);
+        } else if (response.ok) {
           premium = core.extractSorsaData(await response.text()).premium;
         }
       } catch { /* The score status remains available when the plan check fails. */ }
     }
+    if (status.phase !== 'auth') premium = await rememberPremium(premium);
     return { ...status, cacheEntries, premium, showBots: all[SHOW_BOTS_KEY] !== false };
+  };
+
+  let sessionCheckInFlight = null;
+  const checkSessionQuietly = () => {
+    if (sessionCheckInFlight) return sessionCheckInFlight;
+    sessionCheckInFlight = (async () => {
+      const checked = Number((await chrome.storage.local.get(AUTH_CHECK_KEY))[AUTH_CHECK_KEY]);
+      if (Date.now() - checked < AUTH_CHECK_INTERVAL_MS) return { checked: false };
+      await chrome.storage.local.set({ [AUTH_CHECK_KEY]: Date.now() });
+      return { ...(await getStatus()), checked: true };
+    })();
+    return sessionCheckInFlight.finally(() => { sessionCheckInFlight = null; });
   };
 
   const checkBotOnSorsa = async (accountId) => {
@@ -94,17 +123,32 @@ importScripts('core.js');
   const getBots = async (handle, refresh = false) => {
     const settings = await chrome.storage.local.get(SHOW_BOTS_KEY);
     if (settings[SHOW_BOTS_KEY] === false) return { enabled: false };
-    const response = await fetch(`https://app.sorsa.io/profile/${encodeURIComponent(handle)}`, {
-      credentials: 'include', cache: 'no-store',
-    });
-    if (!response.ok || new URL(response.url).pathname === '/authorization') return { authRequired: true };
-    const { premium, account } = core.extractSorsaData(await response.text(), handle);
-    if (premium !== true) return { premium };
-    if (!account) return { premium: true, error: 'Profile unavailable' };
-
     const key = `${BOT_PREFIX}${handle}`;
     const stored = await chrome.storage.local.get(key);
     let latest = stored[key] || null;
+    let response;
+    try {
+      response = await fetch(`https://app.sorsa.io/profile/${encodeURIComponent(handle)}`, {
+        credentials: 'include', cache: 'no-store',
+      });
+    } catch {
+      return { premium: await rememberPremium(null), latest, error: 'Bot data temporarily unavailable' };
+    }
+    if (response.ok && new URL(response.url).pathname === '/authorization') {
+      await chrome.storage.local.remove(PREMIUM_KEY);
+      return { authRequired: true };
+    }
+    if (!response.ok) return { premium: await rememberPremium(null), latest, error: 'Bot data temporarily unavailable' };
+    let parsed;
+    try {
+      parsed = core.extractSorsaData(await response.text(), handle);
+    } catch {
+      return { premium: await rememberPremium(null), latest, error: 'Bot data temporarily unavailable' };
+    }
+    const premium = await rememberPremium(parsed.premium);
+    const { account } = parsed;
+    if (premium !== true) return { premium };
+    if (!account) return { premium: true, latest, error: 'Profile unavailable' };
     const bot = account.bot_followers;
     if (bot?.status === 'finish' && Number.isFinite(bot.value) && bot.value >= 0 && bot.value <= 100 && Number.isFinite(bot.last_update) && bot.last_update > 0) {
       latest = { value: bot.value, lastUpdate: bot.last_update };
@@ -186,6 +230,7 @@ importScripts('core.js');
     } else if (invalidated) {
       await saveStatus('ready', 'Score cache cleared.');
     } else if (result?.authRequired) {
+      await chrome.storage.local.remove(PREMIUM_KEY);
       await saveStatus('auth', 'Sign in to Sorsa to see scores on X.');
     } else if (!result) {
       await saveStatus('error', 'Sorsa is temporarily unavailable. Please try again later.', Date.now());
@@ -198,6 +243,11 @@ importScripts('core.js');
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message && message.type === 'GET_STATUS') {
       getStatus().then(sendResponse);
+      return true;
+    }
+
+    if (message && message.type === 'CHECK_SESSION') {
+      checkSessionQuietly().then(sendResponse).catch(() => sendResponse({ checked: true, phase: 'error' }));
       return true;
     }
 

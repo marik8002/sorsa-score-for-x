@@ -22,6 +22,7 @@ async function createPage(html, {
   if (now) window.Date.now = now;
   const requests = [];
   const messages = [];
+  const intervalDelays = [];
   const storageListeners = [];
   window.chrome = {
     runtime: {
@@ -29,6 +30,10 @@ async function createPage(html, {
       sendMessage(message, callback) {
         if (message.type === 'SORSA_GET_SCORE') requests.push(message.handle);
         messages.push(message);
+        if (message.type === 'CHECK_SESSION') {
+          queueMicrotask(() => callback({ checked: false }));
+          return;
+        }
         if (onScoreRequest) {
           onScoreRequest(message, callback);
           return;
@@ -46,6 +51,19 @@ async function createPage(html, {
       },
     },
   };
+  const intervalIds = [];
+  const closeWindow = window.close.bind(window);
+  window.close = () => {
+    for (const id of intervalIds) window.clearInterval(id);
+    closeWindow();
+  };
+  const setInterval = window.setInterval.bind(window);
+  window.setInterval = (callback, delay, ...args) => {
+    intervalDelays.push(delay);
+    const id = setInterval(callback, delay, ...args);
+    intervalIds.push(id);
+    return id;
+  };
   window.eval(await readFile(coreSource, 'utf8'));
   window.eval(await readFile(contentScriptSource, 'utf8'));
   return {
@@ -53,11 +71,19 @@ async function createPage(html, {
     window,
     requests,
     messages,
+    intervalDelays,
     emitStorageChanges(changes) {
       for (const listener of storageListeners) listener(changes, 'local');
     },
   };
 }
+
+test('checks the Sorsa session quietly while an X tab stays open', async (t) => {
+  const { dom, messages, intervalDelays } = await createPage('<article><div data-testid="User-Name"><a href="/mika8002">@mika8002</a></div></article>');
+  t.after(() => dom.window.close());
+  assert.equal(messages.some((message) => message.type === 'CHECK_SESSION'), true);
+  assert.equal(intervalDelays.includes(10 * 60 * 1000), true);
+});
 
 function afterNextFrame(window) {
   return new Promise((resolve) => {
@@ -228,6 +254,44 @@ test('adds bots when the follower row appears after the profile name', async (t)
   assert.equal(window.document.querySelector('.counts .sorsa-bot-widget')?.textContent, 'Bots 9%');
 });
 
+test('rechecks an unknown Plus status on an unchanged profile', async (t) => {
+  let botRequests = 0;
+  const { dom, window } = await createPage('<div data-testid="primaryColumn"><div data-testid="UserName"><span>@mika8002</span></div><div class="counts"><div><a href="/mika8002/verified_followers">4,568 Followers</a></div></div></div>', {
+    url: 'https://x.com/mika8002',
+    onScoreRequest(message, callback) {
+      queueMicrotask(() => callback(message.type === 'SORSA_GET_SCORE'
+        ? { score: 956 }
+        : ++botRequests === 1 ? { premium: null } : { premium: true, latest: { value: 9.07 } }));
+    },
+  });
+  t.after(() => dom.window.close());
+  const originalSetTimeout = window.setTimeout.bind(window);
+  window.setTimeout = (callback, delay, ...args) => originalSetTimeout(callback, delay >= 60000 ? 0 : delay, ...args);
+  await window.SorsaScoreContent.scanNow();
+  for (let attempt = 0; attempt < 50 && botRequests < 2; attempt += 1) await wait(10);
+  assert.equal(botRequests, 2);
+  assert.match(window.document.querySelector('.sorsa-bot-widget')?.textContent || '', /Bots 9%/);
+});
+
+test('updates an open profile when the saved Plus status changes', async (t) => {
+  let premium = false;
+  const { dom, window, emitStorageChanges } = await createPage('<div data-testid="primaryColumn"><div data-testid="UserName"><span>@mika8002</span></div><div class="counts"><div><a href="/mika8002/verified_followers">4,568 Followers</a></div></div></div>', {
+    url: 'https://x.com/mika8002',
+    onScoreRequest(message, callback) {
+      queueMicrotask(() => callback(message.type === 'SORSA_GET_SCORE'
+        ? { score: 956 }
+        : { premium, latest: { value: 9.07 } }));
+    },
+  });
+  t.after(() => dom.window.close());
+  await window.SorsaScoreContent.scanNow();
+  assert.equal(window.document.querySelector('.sorsa-bot-widget'), null);
+  premium = true;
+  emitStorageChanges({ 'sorsa-premium': { oldValue: false, newValue: true } });
+  for (let attempt = 0; attempt < 20 && !window.document.querySelector('.sorsa-bot-widget'); attempt += 1) await wait(10);
+  assert.match(window.document.querySelector('.sorsa-bot-widget')?.textContent || '', /Bots 9%/);
+});
+
 test('stops polling when a reloaded extension invalidates the old X content script', async (t) => {
   let botRequests = 0;
   const { dom, window } = await createPage('<div data-testid="primaryColumn"><div data-testid="UserName"><span>@mika8002</span></div><div class="counts"><div><a href="/mika8002/verified_followers">4,568 Followers</a></div></div></div>', {
@@ -349,8 +413,9 @@ test('adds a score to a hover card created after the page has loaded', async (t)
   assert.equal(window.document.querySelectorAll('[data-testid="HoverCard"] .sorsa-score-badge').length, 1);
   assert.equal(badge.textContent, '681');
   assert.equal(badge.previousElementSibling.textContent, '@Cherry_Web3');
-  assert.equal(messages[0].handle, 'cherry_web3');
-  assert.equal(messages[0].profileHandle, 'Cherry_Web3');
+  const scoreMessage = messages.find((message) => message.type === 'SORSA_GET_SCORE');
+  assert.equal(scoreMessage.handle, 'cherry_web3');
+  assert.equal(scoreMessage.profileHandle, 'Cherry_Web3');
 });
 
 test('keeps a UserCell score between the handle and following text on the same row', async (t) => {
